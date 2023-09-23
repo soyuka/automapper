@@ -1,0 +1,21 @@
+{
+  "name": "soyuka/automapper",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Soyuka\\Automapper\\": "src/",
+      "Soyuka\\Automapper\\Tests\\": "tests/"
+    }
+  },
+  "authors": [
+    {
+      "name": "soyuka",
+      "email": "soyuka@users.noreply.github.com"
+    }
+  ],
+  "require-dev": {
+    "phpunit/phpunit": "^10.3",
+    "friendsofphp/php-cs-fixer": "^3.28"
+  }
+}
