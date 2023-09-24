@@ -2,39 +2,90 @@
 
 namespace Soyuka\Automapper;
 
-use ReflectionNamedType;
 use RuntimeException;
+use Soyuka\Automapper\Attributes\MapIf;
+use Soyuka\Automapper\Attributes\MapTo;
+use Soyuka\Automapper\Attributes\MapWith;
+use Symfony\Component\PropertyAccess\PropertyAccess;
+use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 
 class Mapper
 {
+    public function __construct(private ?PropertyAccessorInterface $propertyAccessor = null)
+    {
+    }
+
     /**
      * @var class-string|object $to
      */
-    public function map(object $o, object|string|null $to = null): object
+    public function map(object $object, object|string|null $to = null): object
     {
-        $refl = new \ReflectionClass($o);
+        $refl = new \ReflectionClass($object);
 
         if (!$to) {
             $to = $this->getAttribute($refl, MapTo::class, true)->to;
         }
 
-        $toRefl = new \ReflectionClass($to);
-        $mapped = $toRefl->newInstance();
+        $arguments = [];
+        if (is_object($to)) {
+            $toRefl = new \ReflectionClass(get_class($to));
+            $mapped = $to;
+        } else {
+            $toRefl = new \ReflectionClass($to);
+            $mapped = $toRefl->newInstanceWithoutConstructor();
+        }
+
+        $constructor = $toRefl->getConstructor();
+        foreach ($constructor?->getParameters() ?? [] as $parameter) {
+            $arguments[$parameter->getName()] = $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : null;
+        }
 
         foreach ($refl->getProperties() as $property) {
-            $mapTo = $this->getAttribute($property, MapTo::class)?->to ?? $property->getName();
+            $propertyName = $property->getName();
+            $mapTo = $this->getAttribute($property, MapTo::class)?->to ?? $propertyName;
             if (!$toRefl->hasProperty($mapTo)) {
                 continue;
             }
 
+            $value = $this->propertyAccessor ? $this->propertyAccessor->getValue($object, $propertyName) : $object->{$propertyName};
+            $mapIf = $this->getAttribute($property, MapIf::class)?->if;
+            if (is_callable($mapIf) && false === $this->call($mapIf, $value, $object)) {
+                continue;
+            }
+
             $mapWith = $this->getAttribute($property, MapWith::class)?->with;
-            $v = $o->{$property->getName()};
-            $mapped->{$mapTo} = is_callable($mapWith) ? $mapWith($v) : $v;
+            if (is_callable($mapWith)) {
+                $value = $this->call($mapWith, $value, $object);
+            }
+
+            if (array_key_exists($mapTo, $arguments)) {
+                $arguments[$mapTo] = $value;
+            } else {
+                $this->propertyAccessor ? $this->propertyAccessor->setValue($mapped, $mapTo, $value) : ($mapped->{$mapTo} = $value);
+            }
         }
+
+        $constructor->invokeArgs($mapped, $arguments);
 
         return $mapped;
     }
 
+    private function call(callable $fn, mixed $value, object $object)
+    {
+        $refl = new \ReflectionFunction(\Closure::fromCallable($fn));
+        $withParameters = $refl->getParameters();
+        $withArgs = [$value];
+
+        // Let's not send object if we don't need to, gives the ability to call native functions
+        foreach ($withParameters as $parameter) {
+            if ($parameter->getName() === 'object') {
+                $withArgs['object'] = $object;
+                break;
+            }
+        }
+
+        return call_user_func_array($fn, $withArgs);
+    }
     /**
      * @param class-string $name
      */
@@ -47,6 +98,5 @@ class Mapper
         }
 
         return $a ? $a->newInstance() : $a;
-
     }
 }
