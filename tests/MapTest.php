@@ -2,6 +2,7 @@
 
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\Container\ContainerInterface;
 use Soyuka\Automapper\Mapper;
 use Soyuka\Automapper\Tests\Fixtures\A;
 use Soyuka\Automapper\Tests\Fixtures\B;
@@ -15,6 +16,7 @@ class MapTest extends TestCase
         $mapper = new Mapper(...$deps);
         $this->assertEquals($expect, $mapper->map(...$args));
     }
+
     public static function mapProvider()
     {
         $a = new A();
@@ -39,5 +41,15 @@ class MapTest extends TestCase
         $d->concat = 'shouldtestme';
 
         yield [$d, [$a], [PropertyAccess::createPropertyAccessor()]];
+
+        $e = clone $b;
+        $e->transform = 'Test';
+        $serviceLocator = static::createStub(ContainerInterface::class);
+        $serviceLocator->method('has')->willReturnCallback(function ($v): bool {
+            return $v === 'strtoupper';
+        });
+        $serviceLocator->method('get')->with('strtoupper')->willReturn(fn ($v) => ucfirst($v));
+
+        yield [$e, [$a], [null, $serviceLocator]];
     }
 }

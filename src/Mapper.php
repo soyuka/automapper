@@ -2,16 +2,16 @@
 
 namespace Soyuka\Automapper;
 
+use Psr\Container\ContainerInterface;
 use RuntimeException;
 use Soyuka\Automapper\Attributes\MapIf;
 use Soyuka\Automapper\Attributes\MapTo;
 use Soyuka\Automapper\Attributes\MapWith;
-use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 
 class Mapper
 {
-    public function __construct(private ?PropertyAccessorInterface $propertyAccessor = null)
+    public function __construct(private ?PropertyAccessorInterface $propertyAccessor = null, private ?ContainerInterface $serviceLocator = null)
     {
     }
 
@@ -48,12 +48,12 @@ class Mapper
             }
 
             $value = $this->propertyAccessor ? $this->propertyAccessor->getValue($object, $propertyName) : $object->{$propertyName};
-            $mapIf = $this->getAttribute($property, MapIf::class)?->if;
+            $mapIf = $this->getCallable($this->getAttribute($property, MapIf::class)?->if);
             if (is_callable($mapIf) && false === $this->call($mapIf, $value, $object)) {
                 continue;
             }
 
-            $mapWith = $this->getAttribute($property, MapWith::class)?->with;
+            $mapWith = $this->getCallable($this->getAttribute($property, MapWith::class)?->with);
             if (is_callable($mapWith)) {
                 $value = $this->call($mapWith, $value, $object);
             }
@@ -86,6 +86,16 @@ class Mapper
 
         return call_user_func_array($fn, $withArgs);
     }
+
+    private function getCallable(string|callable|null $fn)
+    {
+        if ($this->serviceLocator && is_string($fn) && $this->serviceLocator->has($fn)) {
+            return $this->serviceLocator->get($fn);
+        }
+
+        return $fn;
+    }
+
     /**
      * @param class-string $name
      */
