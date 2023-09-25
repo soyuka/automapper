@@ -12,4 +12,6 @@ class B
     public string $concat;
     public bool $nomap = true;
     public int $id;
+    public D $relation;
+    public D $relationNotMapped;
 }

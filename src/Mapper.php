@@ -58,6 +58,10 @@ class Mapper
                 $value = $this->call($mapWith, $value, $object);
             }
 
+            if (is_object($value) && $to = $this->getAttribute(new \ReflectionClass(get_class($value)), MapTo::class)?->to) {
+                $value = $this->map($value, $to);
+            }
+
             if (array_key_exists($mapTo, $arguments)) {
                 $arguments[$mapTo] = $value;
             } else {

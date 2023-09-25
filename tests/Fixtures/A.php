@@ -25,6 +25,10 @@ class A
     #[MapIf('boolval')]
     public bool $nomap = false;
 
+    public C $relation;
+
+    public D $relationNotMapped;
+
     public function getConcat()
     {
         return 'should';

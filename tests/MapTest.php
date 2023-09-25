@@ -6,6 +6,8 @@ use Psr\Container\ContainerInterface;
 use Soyuka\Automapper\Mapper;
 use Soyuka\Automapper\Tests\Fixtures\A;
 use Soyuka\Automapper\Tests\Fixtures\B;
+use Soyuka\Automapper\Tests\Fixtures\C;
+use Soyuka\Automapper\Tests\Fixtures\D;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 
 class MapTest extends TestCase
@@ -19,17 +21,23 @@ class MapTest extends TestCase
 
     public static function mapProvider()
     {
+        $d = new D(baz: 'foo', bat: 'bar');
+        $c = new C(foo: 'foo', bar: 'bar');
         $a = new A();
         $a->foo = 'test';
         $a->transform = 'test';
         $a->baz = 'me';
         $a->notinb = 'test';
+        $a->relation = $c;
+        $a->relationNotMapped = $d;
 
         $b = new B('test');
         $b->transform = 'TEST';
         $b->baz = 'me';
         $b->nomap = true;
         $b->concat = 'testme';
+        $b->relation = $d;
+        $b->relationNotMapped = $d;
         yield [$b, [$a]];
 
         $c = clone $b;
